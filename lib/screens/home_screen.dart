@@ -19,20 +19,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<Map<String, dynamic>>? _future;
   String _selected = 'Dhaka';
-  bool _didDeps = false;
 
   @override
   void initState() {
     super.initState();
-    _future = _api.fetchCurrent(_selected);
+    // Use global division value if available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final globalDivision = AppState.of(context).division.value;
+      setState(() {
+        _selected = globalDivision;
+        _future = _api.fetchCurrent(_selected);
+      });
+    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_didDeps) {
-      AppState.of(context).division.value = _selected;
-      _didDeps = true;
+    // Always sync _selected with global division
+    final globalDivision = AppState.of(context).division.value;
+    if (_selected != globalDivision) {
+      setState(() {
+        _selected = globalDivision;
+      });
     }
   }
 
@@ -75,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _selected,
+                value: AppState.of(context).division.value,
                 isExpanded: true,
                 decoration: inputDecoration,
                 dropdownColor: isDark ? const Color(0xFF2B2B2B) : Colors.white,
@@ -92,7 +101,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     .toList(),
                 onChanged: (v) {
                   if (v == null) return;
-                  _selected = v;
+                  setState(() {
+                    _selected = v;
+                    AppState.of(context).division.value = v;
+                  });
                   _reload();
                 },
               ),
