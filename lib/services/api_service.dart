@@ -5,8 +5,8 @@ class ApiService {
   final Dio _dio = Dio();
 
   static const Map<String, String> _stationIds = {
-    "Dhaka": "A538609",
-    "Chattogram": "A538645",
+    "Dhaka": "A538612",
+    "Chattogram": "A538633",
     "Rajshahi": "A538648",
     "Khulna": "A562729",
     "Barishal": "A538651",

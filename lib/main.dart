@@ -5,6 +5,7 @@ import 'screens/trends_screen.dart';
 import 'screens/forecast_screen.dart';
 import 'screens/alerts_screen.dart';
 import 'screens/about_screen.dart';
+import 'widgets/app_logo.dart';
 
 void main() => runApp(const AQIBDApp());
 
@@ -118,7 +119,14 @@ class _RootScreenState extends State<RootScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AQI-BD'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const AppLogo(size: 32),
+            const SizedBox(width: 12),
+            const Text('AQI-BD'),
+          ],
+        ),
         actions: [
           IconButton(
             icon: Icon(widget.darkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded),

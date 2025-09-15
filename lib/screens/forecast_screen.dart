@@ -42,17 +42,25 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
   Future<List<_ForecastItem>> _fetch(String division) async {
     try {
+      // --- Calls your backend through services/aqi_service.dart ---
       final raw = await _svc.fetchForecast7(division);
+
+      // Demo confidences (replace later if your API returns them)
       final conf = [95, 88, 82, 75, 68, 62, 55];
+
       final out = <_ForecastItem>[];
       for (int i = 0; i < raw.length && i < 7; i++) {
         final m = raw[i];
+        // API returns: { date: 'YYYY-MM-DD', predicted_aqi: double }
+        // services/aqi_service.dart maps them to { label, date, aqi_pred }
         final label = (m['label'] ?? 'Day ${i + 1}').toString();
         final v = (m['aqi_pred'] is num)
             ? (m['aqi_pred'] as num).toDouble().clamp(0, 500)
             : 0.0;
         out.add(_ForecastItem(label: label, value: v.toDouble(), confidence: conf[i]));
       }
+
+      // If for any reason API returns nothing, keep UI stable with a fallback
       return out.isEmpty ? _fallback() : out;
     } catch (_) {
       return _fallback();
@@ -99,7 +107,10 @@ class _ForecastScreenState extends State<ForecastScreen> {
                   children: [
                     Text(
                       '$division - AQI Predictions',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 4),
                     Text('Powered by machine learning algorithms',
@@ -290,7 +301,7 @@ class _BarChartWithAxis extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // X labels (kept in one line)
+                  // X labels (kept in one line; “Tomorrow” fixed)
                   Row(
                     children: List.generate(items.length, (i) {
                       final txt = items[i].label.toLowerCase().startsWith('tom')
