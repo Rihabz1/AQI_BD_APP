@@ -18,6 +18,20 @@ class AQIBDApp extends StatefulWidget {
 
 class _AQIBDAppState extends State<AQIBDApp> {
   bool _dark = false;
+  late final ValueNotifier<String> _divisionNotifier;
+
+  @override
+  void initState() {
+    super.initState();
+    // Create division notifier once and reuse it to preserve selection
+    _divisionNotifier = ValueNotifier("Dhaka");
+  }
+
+  @override
+  void dispose() {
+    _divisionNotifier.dispose();
+    super.dispose();
+  }
 
   ThemeData get _lightTheme => ThemeData(
         useMaterial3: true,
@@ -39,11 +53,13 @@ class _AQIBDAppState extends State<AQIBDApp> {
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
-          selectedItemColor: Color(0xFF2D552E), // Your green color
-          unselectedItemColor: Color(0xFF9AA0A6),
+          selectedItemColor: Color(0xFF1B3B1D), // Darker green for better contrast
+          unselectedItemColor: Color(0xFFBDBDBD), // Lighter gray for better contrast
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
           elevation: 8, // makes bar visible
+          selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
+          unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w400),
         ),
         dividerColor: const Color(0xFFE6E8EC),
       );
@@ -71,18 +87,22 @@ class _AQIBDAppState extends State<AQIBDApp> {
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color(0xFF1F1F1F),
-          selectedItemColor: Color(0xFF4A7C59), // Brighter green for dark mode
-          unselectedItemColor: Colors.grey,
+          selectedItemColor: Color(0xFF66BB6A), // Brighter green for better visibility
+          unselectedItemColor: Color(0xFF757575), // Medium gray
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
           elevation: 8,
+          selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
+          unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w400),
         ),
         dividerColor: Colors.grey.shade800,
       );
 
   @override
   Widget build(BuildContext context) {
+    // Use the persistent ValueNotifier to preserve division selection across theme changes
     return AppState(
+      division: _divisionNotifier, // Pass the persistent ValueNotifier
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'AQI BD',

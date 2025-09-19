@@ -15,11 +15,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
   final _svc = AqiService();
   Future<List<_ForecastItem>>? _future;
   VoidCallback? _divListener;
+  ValueNotifier<String>? _divisionNotifier; // Store reference to avoid dispose error
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final vn = AppState.of(context).division;
+    _divisionNotifier = vn; // Store reference for safe disposal
     _divListener ??= _load;
     vn.removeListener(_divListener!);
     vn.addListener(_divListener!);
@@ -28,14 +30,14 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
   @override
   void dispose() {
-    if (_divListener != null) {
-      AppState.of(context).division.removeListener(_divListener!);
+    if (_divListener != null && _divisionNotifier != null) {
+      _divisionNotifier!.removeListener(_divListener!);
     }
     super.dispose();
   }
 
   void _load() {
-    final d = AppState.of(context).division.value;
+    final d = _divisionNotifier?.value ?? "Dhaka";
     setState(() {
       _future = _fetch(d);
     });
@@ -265,10 +267,12 @@ class _LineChartWidget extends StatelessWidget {
                   final aqiValue = spot.y.round();
                   final color = aqiColor(aqiValue, Theme.of(context).brightness);
                   return FlDotCirclePainter(
-                    radius: 5,
+                    radius: 6, // Slightly larger for better visibility
                     color: color,
-                    strokeWidth: 2,
-                    strokeColor: Colors.white,
+                    strokeWidth: 2.5, // Thicker stroke
+                    strokeColor: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.black87 // Dark outline in dark mode
+                        : Colors.white, // White outline in light mode
                   );
                 },
               ),
@@ -346,6 +350,11 @@ class _LineChartWidget extends StatelessWidget {
           ),
           lineTouchData: LineTouchData(
             enabled: true,
+            touchSpotThreshold: 20, // Increase touch area for easier selection
+            distanceCalculator: (Offset touchPoint, Offset spotPixelCoordinates) {
+              // Custom distance calculation for better touch detection
+              return (touchPoint - spotPixelCoordinates).distance;
+            },
             touchTooltipData: LineTouchTooltipData(
               getTooltipItems: (touchedSpots) {
                 return touchedSpots.map((spot) {

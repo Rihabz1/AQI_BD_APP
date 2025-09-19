@@ -124,15 +124,45 @@ class _TrendsScreenState extends State<TrendsScreen> {
                   if (v != null) spots.add(FlSpot(i.toDouble(), v));
                 }
 
-                // y range from actual plotted points
+                // y range from actual plotted points with enhanced spacing for close values
                 final yVals = spots.map((s) => s.y).toList();
                 double minY = 0, maxY = 300;
                 if (yVals.isNotEmpty) {
                   final lo = yVals.reduce((a, b) => a < b ? a : b);
                   final hi = yVals.reduce((a, b) => a > b ? a : b);
-                  minY = (lo - 10).clamp(0, 500);
-                  maxY = (hi + 10).clamp(minY + 50, 500);
-                  if (maxY - minY < 60) maxY = minY + 60;
+                  final range = hi - lo;
+                  
+                  // Much more aggressive spacing for close values
+                  double padding;
+                  double minRange;
+                  
+                  if (range <= 10) {
+                    // Very close values (like 143, 148 or 33, 36) - maximum spacing
+                    padding = 35;
+                    minRange = 150;
+                  } else if (range <= 20) {
+                    // Close values - high spacing
+                    padding = 25;
+                    minRange = 120;
+                  } else if (range <= 40) {
+                    // Moderately close - medium spacing
+                    padding = 20;
+                    minRange = 100;
+                  } else {
+                    // Normal spacing
+                    padding = 15;
+                    minRange = 80;
+                  }
+                  
+                  minY = (lo - padding).clamp(0, 500);
+                  maxY = (hi + padding).clamp(minY + 50, 500);
+                  
+                  // Ensure minimum range for visual separation
+                  if (maxY - minY < minRange) {
+                    final center = (lo + hi) / 2;
+                    minY = (center - minRange / 2).clamp(0, 500);
+                    maxY = minY + minRange;
+                  }
                 }
 
                 final avg = yVals.isEmpty ? null : yVals.reduce((a, b) => a + b) / yVals.length;
@@ -151,91 +181,12 @@ class _TrendsScreenState extends State<TrendsScreen> {
                         ),
                         const SizedBox(height: 10),
                         SizedBox(
-                          height: 220,
-                          child: LineChart(
-                            LineChartData(
-                              minX: 0,
-                              maxX: (windowDates.length - 1).toDouble(),
-                              minY: minY,
-                              maxY: maxY,
-                              gridData: FlGridData(
-                                show: true,
-                                drawVerticalLine: true,
-                                horizontalInterval: (maxY - minY) / 4,
-                                getDrawingHorizontalLine: (_) => FlLine(
-                                  color: theme.brightness == Brightness.dark
-                                      ? Colors.white12
-                                      : const Color(0xFFCBD5E1),
-                                  strokeWidth: 1,
-                                  dashArray: const [6, 6],
-                                ),
-                                getDrawingVerticalLine: (_) => FlLine(
-                                  color: theme.brightness == Brightness.dark
-                                      ? Colors.white12
-                                      : const Color(0xFFCBD5E1),
-                                  strokeWidth: 1,
-                                  dashArray: const [6, 6],
-                                ),
-                              ),
-                              titlesData: FlTitlesData(
-                                topTitles:
-                                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                rightTitles:
-                                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                leftTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    reservedSize: 34,
-                                    interval: (maxY - minY) / 4,
-                                    getTitlesWidget: (v, _) => Text(
-                                      v.toInt().toString(),
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: theme.textTheme.bodySmall?.color,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                bottomTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    interval: 1,
-                                    getTitlesWidget: (v, _) {
-                                      final i = v.round().clamp(0, xLabels.length - 1);
-                                      final show = _modeDays == 7 || i % 5 == 0;
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 6),
-                                        child: Text(
-                                          show ? xLabels[i] : '',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: theme.textTheme.bodySmall?.color,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                              lineBarsData: [
-                                LineChartBarData(
-                                  spots: spots,
-                                  isCurved: true,
-                                  barWidth: 3,
-                                  dotData: FlDotData(show: true),
-                                  color: const Color(0xFF06B6D4),
-                                ),
-                              ],
-                              borderData: FlBorderData(
-                                show: true,
-                                border: Border.all(
-                                  color: theme.brightness == Brightness.dark
-                                      ? Colors.white10
-                                      : const Color(0xFFE5E7EB),
-                                  width: 1,
-                                ),
-                              ),
-                            ),
+                          height: 240,
+                          child: _TrendsLineChart(
+                            spots: spots,
+                            xLabels: xLabels,
+                            windowDates: windowDates,
+                            modeDays: _modeDays,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -499,6 +450,221 @@ class _StatsRow extends StatelessWidget {
           Column(children: [Text('Min', style: label()), const SizedBox(height: 4), Text(_fmt(minV), style: value)]),
           Column(children: [Text('Max', style: label()), const SizedBox(height: 4), Text(_fmt(maxV), style: value)]),
         ],
+      ),
+    );
+  }
+}
+
+// NEW CLEAN LINE CHART IMPLEMENTATION
+class _TrendsLineChart extends StatelessWidget {
+  final List<FlSpot> spots;
+  final List<String> xLabels;
+  final List<DateTime> windowDates;
+  final int modeDays;
+
+  const _TrendsLineChart({
+    required this.spots,
+    required this.xLabels,
+    required this.windowDates,
+    required this.modeDays,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (spots.isEmpty) {
+      return Center(
+        child: Text(
+          'No data available',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+            fontSize: 16,
+          ),
+        ),
+      );
+    }
+
+    // Get min and max values from the data
+    final yValues = spots.map((spot) => spot.y).toList();
+    final minValue = yValues.reduce((a, b) => a < b ? a : b);
+    final maxValue = yValues.reduce((a, b) => a > b ? a : b);
+
+    // Create equal regions by dividing the full range
+    final range = maxValue - minValue;
+    final padding = range * 0.15; // 15% padding on each side
+    
+    final minY = (minValue - padding).clamp(0.0, double.infinity);
+    final maxY = maxValue + padding;
+    
+    // Ensure we have at least 5 equal divisions
+    final totalRange = maxY - minY;
+    final divisions = 5;
+    final gridInterval = totalRange / divisions;
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: LineChart(
+        LineChartData(
+          minX: 0,
+          maxX: (spots.length - 1).toDouble(),
+          minY: minY,
+          maxY: maxY,
+          
+          // Grid configuration - equal divisions
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: gridInterval,
+            getDrawingHorizontalLine: (value) => FlLine(
+              color: Theme.of(context).dividerColor.withOpacity(0.3),
+              strokeWidth: 1,
+              dashArray: [5, 5],
+            ),
+          ),
+
+          // Axis titles
+          titlesData: FlTitlesData(
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 45,
+                interval: gridInterval,
+                getTitlesWidget: (value, meta) => Text(
+                  value.round().toString(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).hintColor,
+                  ),
+                ),
+              ),
+            ),
+            
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 35,
+                interval: 1,
+                getTitlesWidget: (value, meta) {
+                  final index = value.round();
+                  if (index < 0 || index >= xLabels.length) return const Text('');
+                  
+                  final shouldShow = modeDays == 7 || index % (modeDays ~/ 6).clamp(1, 7) == 0;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      shouldShow ? xLabels[index] : '',
+                      style: const TextStyle(fontSize: 10),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // Line configuration
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              curveSmoothness: 0.35,
+              color: Theme.of(context).colorScheme.primary,
+              barWidth: 3.5,
+              isStrokeCapRound: true,
+              
+              // Gradient fill below line
+              belowBarData: BarAreaData(
+                show: true,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              ),
+              
+              // Enhanced dots - consistent size for equal regions
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  final aqiValue = spot.y.round();
+                  final dotColor = aqiColor(aqiValue, Theme.of(context).brightness);
+                  
+                  // Use consistent dot size since we have equal regions
+                  return FlDotCirclePainter(
+                    radius: 7.0,
+                    color: dotColor,
+                    strokeWidth: 3.0,
+                    strokeColor: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.black87 
+                        : Colors.white,
+                  );
+                },
+              ),
+            ),
+          ],
+
+          // Border styling
+          borderData: FlBorderData(
+            show: true,
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.6),
+                width: 1.5,
+              ),
+              left: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.6),
+                width: 1.5,
+              ),
+            ),
+          ),
+
+          // Interactive tooltips
+          lineTouchData: LineTouchData(
+            enabled: true,
+            touchSpotThreshold: 25,
+            
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  final index = spot.x.round();
+                  if (index < 0 || index >= windowDates.length) return null;
+                  
+                  final aqiValue = spot.y.round();
+                  final category = aqiCategory(aqiValue);
+                  final date = windowDates[index];
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  
+                  final dateLabel = modeDays == 7 
+                      ? DateFormat('EEE').format(date)
+                      : '${date.day}/${date.month}';
+                  
+                  return LineTooltipItem(
+                    '$dateLabel\nAQI: $aqiValue\n$category',
+                    TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  );
+                }).where((item) => item != null).cast<LineTooltipItem>().toList();
+              },
+              
+              tooltipBgColor: Theme.of(context).brightness == Brightness.dark 
+                  ? const Color(0xFF2D2D2D).withOpacity(0.95)
+                  : Colors.white.withOpacity(0.95),
+                  
+              tooltipBorder: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF4A7C59)
+                    : const Color(0xFF2D552E),
+                width: 2,
+              ),
+              
+              tooltipRoundedRadius: 10,
+              tooltipPadding: const EdgeInsets.all(12),
+            ),
+          ),
+        ),
       ),
     );
   }

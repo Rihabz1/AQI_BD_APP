@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
 class AppState extends InheritedWidget {
-  final ValueNotifier<String> division = ValueNotifier("Dhaka");
+  final ValueNotifier<String> division;
 
-  AppState({super.key, required super.child});
+  AppState({super.key, required super.child, ValueNotifier<String>? division})
+      : division = division ?? ValueNotifier("Dhaka");
 
   static AppState of(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<AppState>()!;
   }
 
   @override
-  bool updateShouldNotify(AppState oldWidget) => true;
+  bool updateShouldNotify(AppState oldWidget) => division != oldWidget.division;
 }
