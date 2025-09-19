@@ -5,6 +5,7 @@ import 'screens/trends_screen.dart';
 import 'screens/forecast_screen.dart';
 import 'screens/alerts_screen.dart';
 import 'screens/about_screen.dart';
+import 'screens/splash_screen.dart';
 import 'widgets/app_logo.dart';
 
 void main() => runApp(const AQIBDApp());
@@ -22,14 +23,14 @@ class _AQIBDAppState extends State<AQIBDApp> {
         useMaterial3: true,
         brightness: Brightness.light,
         scaffoldBackgroundColor: const Color(0xFFF8F7FB),
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2D552E)), // Your green color
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Colors.black87,
           elevation: 0,
           centerTitle: true,
           titleTextStyle: TextStyle(
-            fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF2563EB),
+            fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF2D552E), // Your green color
           ),
         ),
         cardTheme: CardTheme(
@@ -38,7 +39,7 @@ class _AQIBDAppState extends State<AQIBDApp> {
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
-          selectedItemColor: Color(0xFF2563EB),
+          selectedItemColor: Color(0xFF2D552E), // Your green color
           unselectedItemColor: Color(0xFF9AA0A6),
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
@@ -52,7 +53,7 @@ class _AQIBDAppState extends State<AQIBDApp> {
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF121212),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF90CAF9),
+          seedColor: const Color(0xFF4A7C59), // Brighter green for dark mode
           brightness: Brightness.dark,
         ),
         appBarTheme: const AppBarTheme(
@@ -61,7 +62,7 @@ class _AQIBDAppState extends State<AQIBDApp> {
           elevation: 0,
           centerTitle: true,
           titleTextStyle: TextStyle(
-            fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white,
+            fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF4A7C59), // Brighter green
           ),
         ),
         cardTheme: CardTheme(
@@ -70,7 +71,7 @@ class _AQIBDAppState extends State<AQIBDApp> {
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color(0xFF1F1F1F),
-          selectedItemColor: Colors.lightBlueAccent,
+          selectedItemColor: Color(0xFF4A7C59), // Brighter green for dark mode
           unselectedItemColor: Colors.grey,
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
@@ -86,9 +87,11 @@ class _AQIBDAppState extends State<AQIBDApp> {
         debugShowCheckedModeBanner: false,
         title: 'AQI BD',
         theme: _dark ? _darkTheme : _lightTheme,
-        home: RootScreen(
-          darkMode: _dark,
-          onToggleDark: () => setState(() => _dark = !_dark),
+        home: SplashScreen(
+          nextScreen: RootScreen(
+            darkMode: _dark,
+            onToggleDark: () => setState(() => _dark = !_dark),
+          ),
         ),
       ),
     );

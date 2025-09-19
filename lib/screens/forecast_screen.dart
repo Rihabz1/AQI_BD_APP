@@ -1,5 +1,6 @@
 // lib/screens/forecast_screen.dart
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../app_state.dart';
 import '../services/aqi_service.dart';
 import '../utils/aqi_utils.dart';
@@ -120,7 +121,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                       height: 230,
                       child: items == null
                           ? const Center(child: CircularProgressIndicator())
-                          : _BarChartWithAxis(items: items),
+                          : _LineChartWidget(items: items),
                     ),
                   ],
                 ),
@@ -217,148 +218,169 @@ class _DayTile extends StatelessWidget {
   }
 }
 
-/* ===================== BAR CHART WITH Y AXIS ===================== */
+/* ===================== LINE CHART ===================== */
 
-class _BarChartWithAxis extends StatelessWidget {
+class _LineChartWidget extends StatelessWidget {
   final List<_ForecastItem> items;
-  const _BarChartWithAxis({required this.items});
+  const _LineChartWidget({required this.items});
 
   @override
   Widget build(BuildContext context) {
-    // yMax rounded to 20s
+    if (items.isEmpty) return const SizedBox();
+
+    // Calculate max value for Y-axis
     double maxVal = items.map((e) => e.value).fold<double>(0, (m, v) => v > m ? v : m);
-    maxVal = (maxVal <= 0 ? 100 : maxVal) * 1.12;
+    maxVal = (maxVal <= 0 ? 100 : maxVal) * 1.1;
     final yMax = (maxVal / 20.0).ceil() * 20.0;
-    const ticks = 5;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Y-axis labels
-        SizedBox(
-          width: 36,
-          child: LayoutBuilder(builder: (_, c) {
-            final step = yMax / ticks;
-            final style = TextStyle(fontSize: 11, color: Theme.of(context).hintColor);
-            return Stack(children: [
-              for (int i = 0; i <= ticks; i++)
-                Positioned(
-                  left: 0,
-                  bottom: (c.maxHeight - 28) * (i / ticks) + 10, // 28 reserved for x labels area
-                  child: Text((i * step).round().toString(), style: style),
-                )
-            ]);
-          }),
-        ),
-        const SizedBox(width: 6),
+    // Create line chart data points
+    final spots = <FlSpot>[];
+    for (int i = 0; i < items.length; i++) {
+      spots.add(FlSpot(i.toDouble(), items[i].value));
+    }
 
-        // Chart area (grid once, bars in front, x labels)
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, c) {
-              final gridHeight = c.maxHeight - 28; // space for x labels
-              return Column(
-                children: [
-                  // grid + bars
-                  SizedBox(
-                    height: gridHeight,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // One dashed grid for the whole chart
-                        CustomPaint(
-                          painter: _DashedGridPainter(
-                            lines: ticks - 1,
-                            color: Theme.of(context).dividerColor.withOpacity(0.5),
-                          ),
-                        ),
-                        // Bars
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: List.generate(items.length, (i) {
-                              final it = items[i];
-                              final barFrac = (it.value / yMax).clamp(0.0, 1.0);
-                              return Expanded(
-                                child: Align(
-                                  alignment: Alignment.bottomCenter,
-                                  child: Container(
-                                    width: 18,
-                                    height: gridHeight * barFrac,
-                                    decoration: BoxDecoration(
-                                      color: aqiColor(it.value.round(), Theme.of(context).brightness)
-                                          .withOpacity(0.9),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                      ],
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: LineChart(
+        LineChartData(
+          maxY: yMax,
+          minY: 0,
+          maxX: (items.length - 1).toDouble(),
+          minX: 0,
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              curveSmoothness: 0.3,
+              color: Theme.of(context).colorScheme.primary,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              belowBarData: BarAreaData(
+                show: true,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              ),
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  final aqiValue = spot.y.round();
+                  final color = aqiColor(aqiValue, Theme.of(context).brightness);
+                  return FlDotCirclePainter(
+                    radius: 5,
+                    color: color,
+                    strokeWidth: 2,
+                    strokeColor: Colors.white,
+                  );
+                },
+              ),
+            ),
+          ],
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                interval: yMax / 5,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    value.round().toString(),
+                    style: TextStyle(
+                      color: Theme.of(context).hintColor,
+                      fontSize: 11,
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  // X labels (kept in one line; “Tomorrow” fixed)
-                  Row(
-                    children: List.generate(items.length, (i) {
-                      final txt = items[i].label.toLowerCase().startsWith('tom')
-                          ? 'Tomorrow'
-                          : items[i].label;
-                      return Expanded(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            txt,
-                            maxLines: 1,
-                            softWrap: false,
-                            overflow: TextOverflow.fade,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ),
-                      );
-                    }),
-                  )
-                ],
+                  );
+                },
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 30,
+                getTitlesWidget: (value, meta) {
+                  final index = value.round();
+                  if (index >= 0 && index < items.length) {
+                    String label = items[index].label;
+                    if (label.toLowerCase().startsWith('tom')) {
+                      label = 'Tomorrow';
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        label,
+                        style: const TextStyle(fontSize: 10),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }
+                  return const Text('');
+                },
+              ),
+            ),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: yMax / 5,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: Theme.of(context).dividerColor.withOpacity(0.3),
+                strokeWidth: 1,
+                dashArray: [5, 5],
               );
             },
           ),
+          borderData: FlBorderData(
+            show: true,
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+                width: 1,
+              ),
+              left: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+                width: 1,
+              ),
+            ),
+          ),
+          lineTouchData: LineTouchData(
+            enabled: true,
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  final index = spot.x.round();
+                  if (index >= 0 && index < items.length) {
+                    final item = items[index];
+                    final aqiValue = spot.y.round();
+                    final category = aqiCategory(aqiValue);
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
+                    return LineTooltipItem(
+                      '${item.label}\nAQI: $aqiValue\n$category\nConfidence: ${item.confidence}%',
+                      TextStyle(
+                        color: isDark ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    );
+                  }
+                  return null;
+                }).toList();
+              },
+              tooltipBgColor: Theme.of(context).brightness == Brightness.dark 
+                  ? const Color(0xFF2D2D2D).withOpacity(0.95)
+                  : Colors.white.withOpacity(0.95),
+              tooltipBorder: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF4A7C59)
+                    : const Color(0xFF2D552E),
+                width: 1.5,
+              ),
+              tooltipRoundedRadius: 8,
+            ),
+          ),
         ),
-      ],
+      ),
     );
   }
-}
-
-class _DashedGridPainter extends CustomPainter {
-  final int lines;
-  final Color color;
-  const _DashedGridPainter({required this.lines, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = color..strokeWidth = 1;
-    // horizontal dashed lines
-    for (int i = 1; i <= lines; i++) {
-      final y = size.height * (i / (lines + 1));
-      _dashLine(canvas, Offset(0, y), Offset(size.width, y), p);
-    }
-  }
-
-  void _dashLine(Canvas c, Offset a, Offset b, Paint p) {
-    const dash = 6.0, gap = 6.0;
-    double t = 0.0;
-    final total = (b - a).distance;
-    final dir = (b - a) / total;
-    while (t < total) {
-      final s = a + dir * t;
-      final e = a + dir * (t + dash).clamp(0, total);
-      c.drawLine(s, e, p);
-      t += dash + gap;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedGridPainter oldDelegate) => false;
 }
