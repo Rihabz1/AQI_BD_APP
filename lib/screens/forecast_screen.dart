@@ -1,8 +1,9 @@
 // lib/screens/forecast_screen.dart
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
 import '../app_state.dart';
-import '../services/aqi_service.dart';
+import '../services/data_cache_service.dart';
 import '../utils/aqi_utils.dart';
 
 class ForecastScreen extends StatefulWidget {
@@ -12,7 +13,6 @@ class ForecastScreen extends StatefulWidget {
 }
 
 class _ForecastScreenState extends State<ForecastScreen> {
-  final _svc = AqiService();
   Future<List<_ForecastItem>>? _future;
   VoidCallback? _divListener;
   ValueNotifier<String>? _divisionNotifier; // Store reference to avoid dispose error
@@ -45,8 +45,9 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
   Future<List<_ForecastItem>> _fetch(String division) async {
     try {
-      // --- Calls your backend through services/aqi_service.dart ---
-      final raw = await _svc.fetchForecast7(division);
+      // Use cached forecast data from cache service
+      final cacheService = Provider.of<DataCacheService>(context, listen: false);
+      final raw = await cacheService.getForecastData(division);
 
       // Demo confidences (replace later if your API returns them)
       final conf = [95, 88, 82, 75, 68, 62, 55];

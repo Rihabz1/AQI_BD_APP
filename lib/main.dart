@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'app_state.dart';
+import 'services/data_cache_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/trends_screen.dart';
 import 'screens/forecast_screen.dart';
@@ -103,14 +105,17 @@ class _AQIBDAppState extends State<AQIBDApp> {
     // Use the persistent ValueNotifier to preserve division selection across theme changes
     return AppState(
       division: _divisionNotifier, // Pass the persistent ValueNotifier
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'AQI BD',
-        theme: _dark ? _darkTheme : _lightTheme,
-        home: SplashScreen(
-          nextScreen: RootScreen(
-            darkMode: _dark,
-            onToggleDark: () => setState(() => _dark = !_dark),
+      child: ChangeNotifierProvider<DataCacheService>(
+        create: (_) => DataCacheService(),
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'AQI BD',
+          theme: _dark ? _darkTheme : _lightTheme,
+          home: SplashScreen(
+            nextScreen: RootScreen(
+              darkMode: _dark,
+              onToggleDark: () => setState(() => _dark = !_dark),
+            ),
           ),
         ),
       ),

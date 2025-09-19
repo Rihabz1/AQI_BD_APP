@@ -1,22 +1,11 @@
-import 'dart:convert';
-import 'package:csv/csv.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../app_state.dart';
+import '../services/data_cache_service.dart';
 import '../utils/aqi_utils.dart';
-
-/// CSV export URL
-const _csvUrl =
-    'https://docs.google.com/spreadsheets/d/1aRyCU88momwOk_ONhXXzjbm0-9uoCQrRWVQlQOrTM48/export?format=csv';
-
-/// Normalize city labels that appear in the sheet.
-const Map<String, String> _cityFix = {
-  'Chittagong': 'Chattogram',
-  'Barisal': 'Barishal',
-};
 
 /// Divisions to show in the comparison list
 const _divisions = <String>[
@@ -43,7 +32,23 @@ class _TrendsScreenState extends State<TrendsScreen> {
   @override
   void initState() {
     super.initState();
-    _future = _loadCsv();
+    _future = _loadCsvData();
+  }
+
+  /// Load CSV data using cache service (fast for subsequent calls)
+  Future<_Dataset> _loadCsvData() async {
+    final cacheService = Provider.of<DataCacheService>(context, listen: false);
+    final dataset = await cacheService.getCSVData();
+    
+    // Convert from cache service dataset to local dataset format
+    return _Dataset(
+      dataset.rows.map((row) => _Row(
+        date: row.date,
+        city: row.city,
+        aqi: row.aqi,
+      )).toList(),
+      dataset.maxDate,
+    );
   }
 
   @override
@@ -274,69 +279,6 @@ class _TrendsScreenState extends State<TrendsScreen> {
       ],
     );
   }
-
-  // ---------------- CSV loading & dataset ----------------
-
-  Future<_Dataset> _loadCsv() async {
-    final resp = await http.get(Uri.parse(_csvUrl));
-    if (resp.statusCode != 200) throw Exception('HTTP ${resp.statusCode}');
-    final rows =
-        const CsvToListConverter(eol: '\n').convert(utf8.decode(resp.bodyBytes));
-
-    if (rows.isEmpty) return _Dataset(const [], DateTime.now());
-
-    final header = rows.first.map((e) => e.toString().trim()).toList();
-    final hasHeader = _looksLikeHeader(header);
-
-    final data = <_Row>[];
-    for (int i = hasHeader ? 1 : 0; i < rows.length; i++) {
-      final r = rows[i];
-      if (r.isEmpty) continue;
-
-      DateTime? date;
-      String? city;
-      double? aqi;
-
-      if (hasHeader) {
-        final m = <String, String>{};
-        for (int j = 0; j < r.length && j < header.length; j++) {
-          m[header[j].toLowerCase()] = r[j].toString().trim();
-        }
-        date = _parseDate(m['date']);
-        city = (m['city'] ?? m['district'] ?? m['division'])?.trim();
-        final raw = m['aqi'];
-        if (raw != null && raw.isNotEmpty && raw.toUpperCase() != 'DNA') {
-          final n = num.tryParse(raw);
-          if (n != null) aqi = n.toDouble();
-        }
-      } else {
-        // Fallback: [date, city, AQI, ...]
-        date = _parseDate(r[0].toString());
-        if (r.length > 1) city = r[1].toString().trim();
-        if (r.length > 2) {
-          final s = r[2].toString().trim();
-          if (s.isNotEmpty && s.toUpperCase() != 'DNA') {
-            final n = num.tryParse(s);
-            if (n != null) aqi = n.toDouble();
-          }
-        }
-      }
-
-      if (date == null || city == null) continue;
-      final normCity = _cityFix[city] ?? city;
-
-      // normalize to day
-      final d = DateTime(date.year, date.month, date.day);
-
-      data.add(_Row(date: d, city: normCity, aqi: aqi)); // aqi may be null
-    }
-
-    if (data.isEmpty) return _Dataset(const [], DateTime.now());
-
-    data.sort((a, b) => a.date.compareTo(b.date));
-    final maxDate = data.last.date; // true latest date in the sheet
-    return _Dataset(data, maxDate);
-  }
 }
 
 // ---------------- models & helpers ----------------
@@ -379,31 +321,6 @@ class _Dataset {
     }
     return vals;
   }
-}
-
-bool _looksLikeHeader(List<String> header) {
-  final h = header.map((e) => e.toLowerCase()).toList();
-  return h.contains('date') &&
-      (h.contains('city') || h.contains('district') || h.contains('division')) &&
-      h.contains('aqi');
-}
-
-/// IMPORTANT: Your sheet uses MM/dd/yyyy (e.g., 09/07/2025 = Sep 7, 2025).
-/// Prefer MM/dd first to avoid interpreting as 9 July.
-DateTime? _parseDate(String? s) {
-  if (s == null || s.isEmpty) return null;
-  final fmts = [
-    DateFormat('MM/dd/yyyy'), // <-- prefer this for your sheet
-    DateFormat('yyyy-MM-dd'),
-    DateFormat('dd-MM-yyyy'),
-    DateFormat('dd/MM/yyyy'),
-  ];
-  for (final f in fmts) {
-    try {
-      return f.parseStrict(s);
-    } catch (_) {}
-  }
-  return null;
 }
 
 // ---------------- small UI bits ----------------

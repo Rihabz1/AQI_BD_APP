@@ -1,21 +1,8 @@
-import 'dart:convert';
-import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../app_state.dart';
-import '../services/api_service.dart';
+import '../services/data_cache_service.dart';
 import '../utils/aqi_utils.dart';
-
-/// CSV export URL - same as trends screen
-const _csvUrl =
-    'https://docs.google.com/spreadsheets/d/1aRyCU88momwOk_ONhXXzjbm0-9uoCQrRWVQlQOrTM48/export?format=csv';
-
-/// Normalize city labels that appear in the sheet.
-const Map<String, String> _cityFix = {
-  'Chittagong': 'Chattogram',
-  'Barisal': 'Barishal',
-};
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,8 +11,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _api = ApiService();
-
   final _divisions = const [
     'Dhaka','Chattogram','Rajshahi','Khulna',
     'Barishal','Sylhet','Rangpur','Mymensingh',
@@ -55,109 +40,30 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_selected != globalDivision) {
       setState(() {
         _selected = globalDivision;
+        _future = _loadData(_selected);
       });
     }
   }
 
   void _reload() {
     setState(() {
-      _future = _loadData(_selected);
+      _future = _forceReload(_selected);
       AppState.of(context).division.value = _selected;
     });
   }
 
-  /// Load both current API data and CSV historical data
+  /// Load data using cache service (fast for subsequent calls)
   Future<Map<String, dynamic>> _loadData(String division) async {
-    try {
-      // Load current AQI from API
-      final currentData = await _api.fetchCurrent(division);
-      
-      // Load CSV data for historical calculations
-      final csvData = await _loadCsv();
-      
-      // Calculate weekly average and last dataset value
-      final end = csvData.maxDate;
-      final start = end.subtract(const Duration(days: 6)); // 7 days total
-      
-      // Get weekly average using same method as trends screen
-      final weeklyValues = csvData.valuesForCityBetween(division, start, end);
-      final weeklyAvg = weeklyValues.isEmpty ? null : 
-          weeklyValues.reduce((a, b) => a + b) / weeklyValues.length;
-      
-      // Get last available dataset value for 24h change
-      final lastDatasetValue = csvData.getLastValueForCity(division);
-      
-      return {
-        ...currentData,
-        'weekly_avg': weeklyAvg?.round(),
-        'last_dataset_value': lastDatasetValue?.round(),
-        'dataset_date': end,
-      };
-    } catch (e) {
-      // Fallback to API-only data
-      return await _api.fetchCurrent(division);
-    }
+    final cacheService = Provider.of<DataCacheService>(context, listen: false);
+    return await cacheService.getEnhancedData(division);
   }
 
-  /// Load CSV data - same logic as trends screen
-  Future<_Dataset> _loadCsv() async {
-    final resp = await http.get(Uri.parse(_csvUrl));
-    if (resp.statusCode != 200) throw Exception('HTTP ${resp.statusCode}');
-    final rows = const CsvToListConverter(eol: '\n').convert(utf8.decode(resp.bodyBytes));
-
-    if (rows.isEmpty) return _Dataset(const [], DateTime.now());
-
-    final header = rows.first.map((e) => e.toString().trim()).toList();
-    final hasHeader = _looksLikeHeader(header);
-
-    final data = <_Row>[];
-    for (int i = hasHeader ? 1 : 0; i < rows.length; i++) {
-      final r = rows[i];
-      if (r.isEmpty) continue;
-
-      DateTime? date;
-      String? city;
-      double? aqi;
-
-      if (hasHeader) {
-        final m = <String, String>{};
-        for (int j = 0; j < r.length && j < header.length; j++) {
-          m[header[j].toLowerCase()] = r[j].toString().trim();
-        }
-        date = _parseDate(m['date']);
-        city = (m['city'] ?? m['district'] ?? m['division'])?.trim();
-        final raw = m['aqi'];
-        if (raw != null && raw.isNotEmpty && raw.toUpperCase() != 'DNA') {
-          final n = num.tryParse(raw);
-          if (n != null) aqi = n.toDouble();
-        }
-      } else {
-        // Fallback: [date, city, AQI, ...]
-        date = _parseDate(r[0].toString());
-        if (r.length > 1) city = r[1].toString().trim();
-        if (r.length > 2) {
-          final s = r[2].toString().trim();
-          if (s.isNotEmpty && s.toUpperCase() != 'DNA') {
-            final n = num.tryParse(s);
-            if (n != null) aqi = n.toDouble();
-          }
-        }
-      }
-
-      if (date == null || city == null) continue;
-      final normCity = _cityFix[city] ?? city;
-
-      // normalize to day
-      final d = DateTime(date.year, date.month, date.day);
-
-      data.add(_Row(date: d, city: normCity, aqi: aqi)); // aqi may be null
-    }
-
-    if (data.isEmpty) return _Dataset(const [], DateTime.now());
-
-    data.sort((a, b) => a.date.compareTo(b.date));
-    final maxDate = data.last.date; // true latest date in the sheet
-    return _Dataset(data, maxDate);
+  /// Force reload data (bypasses cache)
+  Future<Map<String, dynamic>> _forceReload(String division) async {
+    final cacheService = Provider.of<DataCacheService>(context, listen: false);
+    await cacheService.refreshData(division);
+    await cacheService.refreshCSVData();
+    return await cacheService.getEnhancedData(division);
   }
 
   @override
@@ -441,69 +347,4 @@ class _TipsCard extends StatelessWidget {
       ),
     );
   }
-}
-
-// ---------------- Helper classes for CSV data ----------------
-
-class _Row {
-  final DateTime date;
-  final String city;
-  final double? aqi; // null when DNA/empty
-  const _Row({required this.date, required this.city, required this.aqi});
-}
-
-class _Dataset {
-  final List<_Row> rows; // sorted by date asc
-  final DateTime maxDate;
-  const _Dataset(this.rows, this.maxDate);
-
-  /// Non-null AQI values for [city] within [start..end] inclusive.
-  List<double> valuesForCityBetween(String city, DateTime start, DateTime end) {
-    final seen = <DateTime>{};
-    final vals = <double>[];
-    for (final r in rows) {
-      if (r.city != city) continue;
-      if (r.date.isBefore(start) || r.date.isAfter(end)) continue;
-      if (r.aqi == null) continue;
-      // avoid double-counting if multiple rows in same day
-      if (seen.add(r.date)) vals.add(r.aqi!);
-    }
-    return vals;
-  }
-
-  /// Get the last available AQI value for a city
-  double? getLastValueForCity(String city) {
-    for (int i = rows.length - 1; i >= 0; i--) {
-      final row = rows[i];
-      if (row.city == city && row.aqi != null) {
-        return row.aqi;
-      }
-    }
-    return null;
-  }
-}
-
-bool _looksLikeHeader(List<String> header) {
-  final h = header.map((e) => e.toLowerCase()).toList();
-  return h.contains('date') &&
-      (h.contains('city') || h.contains('district') || h.contains('division')) &&
-      h.contains('aqi');
-}
-
-/// IMPORTANT: Your sheet uses MM/dd/yyyy (e.g., 09/07/2025 = Sep 7, 2025).
-/// Prefer MM/dd first to avoid interpreting as 9 July.
-DateTime? _parseDate(String? s) {
-  if (s == null || s.isEmpty) return null;
-  final fmts = [
-    DateFormat('MM/dd/yyyy'), // <-- prefer this for your sheet
-    DateFormat('yyyy-MM-dd'),
-    DateFormat('dd-MM-yyyy'),
-    DateFormat('dd/MM/yyyy'),
-  ];
-  for (final f in fmts) {
-    try {
-      return f.parseStrict(s);
-    } catch (_) {}
-  }
-  return null;
 }
