@@ -418,9 +418,10 @@ class _TrendsLineChart extends StatelessWidget {
     final gridInterval = totalRange / divisions;
 
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(12.0, 16.0, 12.0, 16.0),
       child: LineChart(
         LineChartData(
+          clipData: FlClipData.all(), // Clip the graph to stay within bounds
           minX: 0,
           maxX: (spots.length - 1).toDouble(),
           minY: minY,
@@ -461,23 +462,25 @@ class _TrendsLineChart extends StatelessWidget {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 35,
+                reservedSize: 40,
                 interval: 1,
                 getTitlesWidget: (value, meta) {
                   final index = value.round();
-                  if (index < 0 || index >= xLabels.length) return const Text('');
+                  if (index < 0 || index >= xLabels.length) return const SizedBox.shrink();
                   
                   final shouldShow = modeDays == 7 || index % (modeDays ~/ 6).clamp(1, 7) == 0;
+                  if (!shouldShow) return const SizedBox.shrink();
+                  
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      shouldShow ? xLabels[index] : '',
+                      xLabels[index],
                       style: const TextStyle(fontSize: 10),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                     ),
                   );
                 },
+
               ),
             ),
           ),
