@@ -272,7 +272,7 @@ class DataCacheService extends ChangeNotifier {
   /// Load CSV data - same logic as trends screen
   Future<_Dataset> _loadCsv() async {
     final resp = await http.get(Uri.parse(_csvUrl));
-    if (resp.statusCode != 200) throw Exception('HTTP ${resp.statusCode}');
+    if (resp.statusCode != 200) throw Exception('Network error occurred');
     final rows = const CsvToListConverter(eol: '\n').convert(utf8.decode(resp.bodyBytes));
 
     if (rows.isEmpty) return _Dataset(const [], DateTime.now());

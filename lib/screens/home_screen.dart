@@ -148,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (!snap.hasData) {
                   return const Padding(
                     padding: EdgeInsets.all(16),
-                    child: Text('No data available'),
+                    child: Text('Unable to load data. Please check your internet connection and try again.'),
                   );
                 }
 

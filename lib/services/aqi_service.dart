@@ -8,7 +8,7 @@ class AqiService {
     final uri = Uri.parse('$_base/predict?division=$division');
     final res = await http.get(uri, headers: {'Accept': 'application/json'});
     if (res.statusCode != 200) {
-      throw Exception('Forecast API ${res.statusCode}: ${res.body}');
+      throw Exception('Forecast data unavailable');
     }
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final List<dynamic> preds = body['predictions'] ?? [];

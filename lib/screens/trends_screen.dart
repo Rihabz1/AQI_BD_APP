@@ -97,7 +97,7 @@ class _TrendsScreenState extends State<TrendsScreen> {
                   return _Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text('Failed to load CSV: ${s.error}'),
+                      child: Text('Unable to load data. Please check your internet connection and try again.'),
                     ),
                   );
                 }
@@ -226,7 +226,7 @@ class _TrendsScreenState extends State<TrendsScreen> {
               return _Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text('Failed to load CSV: ${s.error}'),
+                  child: Text('Unable to load data. Please check your internet connection and try again.'),
                 ),
               );
             }
