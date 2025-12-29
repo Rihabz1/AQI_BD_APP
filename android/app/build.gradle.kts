@@ -38,9 +38,10 @@ android {
         }
     }
 
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            outputFileName = "AirAlertBD-${variant.name}-${variant.versionName}.apk"
+    applicationVariants.all {
+        outputs.all {
+            (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName = 
+                "AirAlertBD-${name}-${versionName}.apk"
         }
     }
 }
