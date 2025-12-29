@@ -197,7 +197,7 @@ class _AboutScreenState extends State<AboutScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'AQI Bangladesh',
+                            'AirAlertBD',
                             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
