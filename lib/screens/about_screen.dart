@@ -260,7 +260,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 
                 _staffMember(
                   'Lead Developer',
-                  'AQI-BD Development Team',
+                  'AirAlertBD Development Team',
                   Icons.code,
                   Theme.of(context).colorScheme.primary,
                 ),

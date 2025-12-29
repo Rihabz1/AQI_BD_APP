@@ -228,7 +228,7 @@ class _SplashScreenState extends State<SplashScreen>
                               child: Column(
                                 children: [
                                   Text(
-                                    'AQI-BD',
+                                    'AirAlertBD',
                                     style: TextStyle(
                                       fontSize: 36,
                                       fontWeight: FontWeight.bold,

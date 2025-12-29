@@ -1,6 +1,6 @@
-# aqi_bd
+# AirAlertBD
 
-A new Flutter project.
+Real-time air quality monitoring application for Bangladesh. Track AQI levels, view trends, and receive alerts about air quality in your area.
 
 ## Getting Started
 

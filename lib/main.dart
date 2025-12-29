@@ -109,7 +109,7 @@ class _AQIBDAppState extends State<AQIBDApp> {
         create: (_) => DataCacheService(),
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'AQI BD',
+          title: 'AirAlertBD',
           theme: _dark ? _darkTheme : _lightTheme,
           home: SplashScreen(
             nextScreen: RootScreen(
@@ -152,7 +152,7 @@ class _RootScreenState extends State<RootScreen> {
           children: [
             const AppLogo(size: 32),
             const SizedBox(width: 12),
-            const Text('AQI-BD'),
+            const Text('AirAlertBD'),
           ],
         ),
         actions: [

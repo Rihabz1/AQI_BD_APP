@@ -1,11 +1,11 @@
 {
-    "name": "aqi_bd",
-    "short_name": "aqi_bd",
+    "name": "AirAlertBD",
+    "short_name": "AirAlertBD",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#hexcode",
     "theme_color": "#hexcode",
-    "description": "A new Flutter project.",
+    "description": "Real-time air quality monitoring for Bangladesh",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
