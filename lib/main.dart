@@ -66,7 +66,7 @@ class _AQIBDAppState extends State<AQIBDApp> {
         dividerColor: const Color(0xFFE6E8EC),
       );
 
-  ThemeData get _darkTheme => ThemeData(
+  ThemeData get                                                                                                        _darkTheme => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF121212),
