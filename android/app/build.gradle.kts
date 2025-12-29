@@ -37,6 +37,12 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "AirAlertBD-${variant.name}-${variant.versionName}.apk"
+        }
+    }
 }
 
 flutter {
